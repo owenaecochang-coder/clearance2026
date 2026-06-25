@@ -306,6 +306,11 @@
 
 <script>
 (function(){
+  // ใส่ Web App URL ของคุณตรงนี้ได้เลย (ระหว่างเครื่องหมายคำพูด) ถ้าใส่ไว้แล้ว
+  // จะไม่ต้องตั้งค่าทุกครั้งที่เปิดเครื่องใหม่หรือเปลี่ยนมือถือ — เปิดมาก็ใช้ได้ทันที
+  // ตัวอย่าง: 'https://script.google.com/macros/s/AKfycbX.../exec'
+  var DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbw1nRjOpcWxEdPxs7QKTrTthQ8ULY-iScYvmLYepG5wgWPpXXIYfM4xg0j3pjzLQbcM/exec';
+
   // ---------- pricing ----------
   function getPrice(brand, color){
     if(brand === 'STAR+') return 299;
@@ -342,7 +347,7 @@
   document.getElementById('orderPill').textContent = orderNumber;
 
   // ---------- settings ----------
-  var sheetUrl = localStorage.getItem('cablepos_sheet_url') || '';
+  var sheetUrl = localStorage.getItem('cablepos_sheet_url') || DEFAULT_SHEET_URL || '';
   var shopName = localStorage.getItem('cablepos_shop_name') || '';
   document.getElementById('sheetUrlInput').value = sheetUrl;
   document.getElementById('shopNameInput').value = shopName;
@@ -565,8 +570,22 @@
   function onScanSuccess(decodedText){
     document.getElementById('skuInput').value = decodedText;
     showToast('สแกนสำเร็จ: ' + decodedText, 'good');
-    // brief pause beep-feel via vibration if supported
     if(navigator.vibrate) navigator.vibrate(80);
+
+    // ปิดกล้องอัตโนมัติทันทีที่สแกนติด เพื่อประหยัดแบตและเลี่ยงสแกนซ้ำโดยไม่ตั้งใจ
+    var readerBox = document.getElementById('reader');
+    var btn = document.getElementById('toggleScan');
+    if(html5QrCode && scanning){
+      html5QrCode.stop().then(function(){
+        readerBox.style.display = 'none';
+        scanning = false;
+        btn.textContent = 'เปิดกล้องสแกน';
+      }).catch(function(){
+        readerBox.style.display = 'none';
+        scanning = false;
+        btn.textContent = 'เปิดกล้องสแกน';
+      });
+    }
   }
 
   renderReceipt();
