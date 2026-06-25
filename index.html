@@ -309,7 +309,7 @@
   // ใส่ Web App URL ของคุณตรงนี้ได้เลย (ระหว่างเครื่องหมายคำพูด) ถ้าใส่ไว้แล้ว
   // จะไม่ต้องตั้งค่าทุกครั้งที่เปิดเครื่องใหม่หรือเปลี่ยนมือถือ — เปิดมาก็ใช้ได้ทันที
   // ตัวอย่าง: 'https://script.google.com/macros/s/AKfycbX.../exec'
-  var DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbw1nRjOpcWxEdPxs7QKTrTthQ8ULY-iScYvmLYepG5wgWPpXXIYfM4xg0j3pjzLQbcM/exec';
+  var DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1yJ4Ny_AZP7eNkzp6Tu5FrpRnCYnmOsMCUuR_N9xXYxA/edit?usp=sharing';
 
   // ---------- pricing ----------
   function getPrice(brand, color){
@@ -537,23 +537,36 @@
       }
       readerBox.style.display = 'block';
       html5QrCode = new Html5Qrcode('reader');
-      Html5Qrcode.getCameras().then(function(cams){
-        var camId = (cams && cams.length) ? cams[cams.length-1].id : null;
-        var config = { fps: 10, qrbox: 220 };
-        var starter = camId
-          ? html5QrCode.start({ deviceId: { exact: camId } }, config, onScanSuccess)
-          : html5QrCode.start({ facingMode: 'environment' }, config, onScanSuccess);
-        starter.then(function(){
+      var config = { fps: 10, qrbox: 220 };
+
+      // ขอกล้องหลัง (environment) ตรงๆก่อน — แม่นยำกว่าการเดาจากลิสต์อุปกรณ์
+      html5QrCode.start({ facingMode: { exact: 'environment' } }, config, onScanSuccess)
+        .then(function(){
           scanning = true;
           btn.textContent = 'ปิดกล้อง';
-        }).catch(function(err){
-          showToast('เปิดกล้องไม่สำเร็จ: ' + err, 'bad');
-          readerBox.style.display = 'none';
+        })
+        .catch(function(){
+          // เครื่อง/เบราว์เซอร์บางรุ่นไม่รองรับ exact: ลองแบบไม่ exact
+          html5QrCode.start({ facingMode: 'environment' }, config, onScanSuccess)
+            .then(function(){
+              scanning = true;
+              btn.textContent = 'ปิดกล้อง';
+            })
+            .catch(function(){
+              // สุดท้ายค่อย fallback ไปเลือกจากลิสต์กล้องที่มี (เลือกตัวที่ชื่อไม่มีคำว่า front/user)
+              Html5Qrcode.getCameras().then(function(cams){
+                if(!cams || !cams.length){ throw new Error('no camera'); }
+                var back = cams.find(function(c){ return !/front|user|selfie/i.test(c.label); }) || cams[cams.length-1];
+                return html5QrCode.start({ deviceId: { exact: back.id } }, config, onScanSuccess);
+              }).then(function(){
+                scanning = true;
+                btn.textContent = 'ปิดกล้อง';
+              }).catch(function(err){
+                showToast('เปิดกล้องไม่สำเร็จ: ' + err, 'bad');
+                readerBox.style.display = 'none';
+              });
+            });
         });
-      }).catch(function(err){
-        showToast('ไม่พบกล้อง หรือไม่ได้รับสิทธิ์เข้าถึงกล้อง', 'bad');
-        readerBox.style.display = 'none';
-      });
     } else {
       html5QrCode.stop().then(function(){
         readerBox.style.display = 'none';
